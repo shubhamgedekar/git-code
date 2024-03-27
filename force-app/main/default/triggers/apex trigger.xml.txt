@@ -1,0 +1,33 @@
+trigger AccountTrigger on Account (after insert, after update) {
+    if (Trigger.isAfter && (Trigger.isInsert || Trigger.isUpdate)) {
+        AccountTriggerHandler.handleAfterTrigger(Trigger.new, Trigger.oldMap);
+    }
+}
+
+public with sharing class AccountTriggerHandler {
+    public static void handleAfterTrigger(List<Account> newAccounts, Map<Id, Account> oldMap) {
+        List<Contact> newContacts = new List<Contact>();
+        for (Account acc : newAccounts) {
+            if (acc.Type == 'Customer' && !hasDefaultContact(acc, oldMap)) {
+                newContacts.add(createDefaultContact(acc));
+            }
+        }
+        if (!newContacts.isEmpty()) {
+            insert newContacts;
+        }
+    }
+
+    private static Boolean hasDefaultContact(Account acc, Map<Id, Account> oldMap) {
+        return oldMap != null && oldMap.containsKey(acc.Id) && [SELECT COUNT() FROM Contact WHERE AccountId = :acc.Id AND FirstName = :acc.Name AND LastName = 'Customer Representative'] > 0;
+    }
+
+    private static Contact createDefaultContact(Account acc) {
+        return new Contact(
+            FirstName = acc.Name,
+            LastName = 'Customer Representative',
+            AccountId = acc.Id,
+            Email = acc.Company_Email__c,
+            Phone = acc.Phone
+        );
+    }
+}

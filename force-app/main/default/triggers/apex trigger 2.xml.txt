@@ -1,0 +1,51 @@
+@isTest
+private class AccountTriggerHandlerTest {
+
+    @isTest
+    static void testDefaultContactCreation() {
+        // Create test account
+        Account testAccount = new Account(
+            Name = 'Test Account',
+            Type = 'Customer',
+            Company_Email__c = 'test@example.com',
+            Phone = '1234567890'
+        );
+        insert testAccount;
+
+        // Verify default contact is created
+        List<Contact> contacts = [SELECT Id FROM Contact WHERE AccountId = :testAccount.Id];
+        System.assertEquals(1, contacts.size());
+        Contact defaultContact = contacts[0];
+        System.assertEquals('Test Account', defaultContact.FirstName);
+        System.assertEquals('Customer Representative', defaultContact.LastName);
+        System.assertEquals('test@example.com', defaultContact.Email);
+        System.assertEquals('1234567890', defaultContact.Phone);
+    }
+
+    @isTest
+    static void testAccountActivationSummaryValidation() {
+        // Create test account
+        Account testAccount = new Account(
+            Name = 'Test Account',
+            Type = 'Customer'
+        );
+        insert testAccount;
+
+        // Try to activate account without setting Account Activation Summary
+        testAccount.IsActive = true;
+        try {
+            update testAccount;
+            System.assert(false, 'Expected validation error');
+        } catch (DmlException e) {
+            System.assertEquals('Account Activation Summary must be filled in when activating account', e.getDmlMessage(0));
+        }
+
+        // Set Account Activation Summary and activate account
+        testAccount.Account_Activation_Summary__c = 'Activation summary';
+        update testAccount;
+
+        // Verify account is activated
+        Account updatedAccount = [SELECT IsActive FROM Account WHERE Id = :testAccount.Id];
+        System.assertEquals(true, updatedAccount.IsActive);
+    }
+}
